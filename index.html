@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pearl fleet</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦪</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#e9ecee; --panel:#f7f8f9; --ink:#1c2a3a; --muted:#5d6b78; --line:#d3d9de;
+  --good:#1f7a5a; --good-bg:#dff1e9; --bad:#b3382c; --bad-bg:#f8e1dd;
+  --slow:#a0660a; --slow-bg:#f7ebd5; --idle:#5d6b78; --idle-bg:#e3e7ea; --new:#3d5a99; --new-bg:#e1e8f6;
+  --nacre:linear-gradient(120deg,#dfe7ef,#efe6ee 45%,#e3efe9);
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#141a21; --panel:#1b232c; --ink:#e6ecf1; --muted:#98a6b3; --line:#2c3845;
+  --good:#5cc79d; --good-bg:#16342a; --bad:#f08a7e; --bad-bg:#3b1f1c; --slow:#e5b25a; --slow-bg:#3a2d15;
+  --idle:#98a6b3; --idle-bg:#242e38; --new:#93b0ec; --new-bg:#1d2a44;
+  --nacre:linear-gradient(120deg,#1e2833,#2a2430 45%,#1d2d28);
+}}
+*{box-sizing:border-box}
+html{height:100%}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Manrope,system-ui,-apple-system,Segoe UI,sans-serif;font-variant-numeric:tabular-nums}
+main{max-width:640px;margin:0 auto;padding:20px 16px 48px}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:14px}
+h1{font-size:20px;font-weight:700;margin:0;letter-spacing:-.01em}
+.stamp{font-size:13px;color:var(--muted)}
+button{font:inherit;font-size:14px;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:2px solid var(--new);outline-offset:2px}
+.verdict{background:var(--nacre);border-radius:18px;padding:22px 20px;margin-bottom:14px}
+.verdict h2{font-size:26px;line-height:1.2;font-weight:700;margin:0 0 8px;letter-spacing:-.02em}
+.verdict p{margin:0;color:var(--muted);font-size:15px}
+.nums{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:18px}
+.num{background:var(--panel);border-radius:12px;padding:12px 14px}
+.num b{display:block;font-size:22px;font-weight:700}
+.num span{font-size:13px;color:var(--muted)}
+h3{font-size:15px;font-weight:700;margin:22px 0 8px}
+.node{display:grid;grid-template-columns:1fr auto;gap:2px 12px;background:var(--panel);border-radius:12px;padding:12px 14px;margin-bottom:8px;border-left:4px solid var(--c)}
+.node .name{font-weight:700;font-size:15px}
+.node .tag{justify-self:end;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--cb);color:var(--c)}
+.node .meta{grid-column:1/-1;font-size:13px;color:var(--muted)}
+.node .why{grid-column:1/-1;font-size:13px;color:var(--c)}
+.s-clean{--c:var(--good);--cb:var(--good-bg)} .s-bad{--c:var(--bad);--cb:var(--bad-bg)}
+.s-slow{--c:var(--slow);--cb:var(--slow-bg)} .s-stalled{--c:var(--idle);--cb:var(--idle-bg)} .s-new{--c:var(--new);--cb:var(--new-bg)}
+details{background:var(--panel);border-radius:12px;padding:12px 14px;margin-top:22px}
+summary{cursor:pointer;font-weight:700;font-size:15px}
+label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px}
+input{width:100%;font:inherit;font-size:15px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.row{display:flex;gap:8px;margin-top:14px}
+.err{background:var(--bad-bg);color:var(--bad);border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:14px}
+.foot{font-size:12px;color:var(--muted);margin-top:18px}
+@media (prefers-reduced-motion:no-preference){.verdict{transition:background .4s}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Pearl fleet</h1>
+    <div><span class="stamp" id="stamp">Loading…</span> <button id="refresh" aria-label="Refresh now">Refresh</button></div>
+  </header>
+  <div id="error" class="err" hidden></div>
+  <section class="verdict" id="verdict"><h2>Checking your nodes…</h2><p>&nbsp;</p></section>
+  <section class="nums" id="nums"></section>
+  <section id="lists"></section>
+  <details id="settings">
+    <summary>Settings</summary>
+    <label for="wallet">Wallet address</label>
+    <input id="wallet" autocomplete="off" spellcheck="false" placeholder="prl1p…">
+    <label for="cost">Salad cost per node, $/hour</label>
+    <input id="cost" type="number" step="0.01" min="0" inputmode="decimal">
+    <label for="price">PRL price override, $ (leave blank for live price)</label>
+    <input id="price" type="number" step="0.01" min="0" inputmode="decimal">
+    <label for="slow">Flag as slow below this % of fleet median</label>
+    <input id="slow" type="number" step="1" min="10" max="100" inputmode="numeric">
+    <div class="row"><button id="save">Save settings</button></div>
+  </details>
+  <p class="foot">Pool data from HeroMiners, price from CoinGecko. Refreshes every minute. Bad = 2+ invalid shares and over 10% invalid. Stalled = no share for 10+ min. Slow = below your cutoff after 60+ valid shares.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const DEF={wallet:"",cost:0.33,price:"",slow:80};
+const store={get(){try{return {...DEF,...JSON.parse(localStorage.getItem("prlfleet")||"{}")}}catch(e){return {...DEF}}},set(v){try{localStorage.setItem("prlfleet",JSON.stringify(v))}catch(e){}}};
+let cfg=store.get();
+const fillSettings=()=>{$("wallet").value=cfg.wallet;$("cost").value=cfg.cost;$("price").value=cfg.price;$("slow").value=cfg.slow;};
+fillSettings();
+$("save").onclick=()=>{cfg={wallet:$("wallet").value.trim(),cost:parseFloat($("cost").value)||0,price:$("price").value===""?"":parseFloat($("price").value),slow:parseFloat($("slow").value)||80};store.set(cfg);load();};
+$("refresh").onclick=()=>load();
+
+const fmt=(n,d=0)=>Number.isFinite(n)?n.toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d}):"–";
+const usd=(n,d=2)=>Number.isFinite(n)?(n<0?"-$":"$")+fmt(Math.abs(n),d):"–";
+const ago=s=>s<90?Math.round(s)+"s ago":s<5400?Math.round(s/60)+" min ago":Math.round(s/3600)+" h ago";
+
+async function getJSON(url){const r=await fetch(url,{cache:"no-store"});if(!r.ok)throw new Error(url.split("/")[2]+" returned "+r.status);return r.json();}
+async function getPrice(){
+  if(cfg.price!==""&&Number.isFinite(cfg.price))return {p:cfg.price,src:"your override"};
+  try{const j=await getJSON("https://api.coingecko.com/api/v3/simple/price?ids=pearl-2&vs_currencies=usd");const p=j?.["pearl-2"]?.usd;if(p)return {p,src:"CoinGecko"};}catch(e){}
+  return {p:NaN,src:"unavailable — set a price override in Settings"};
+}
+
+function classify(w,now,median,slowPct){
+  const good=+w.shares_good||0,inv=+w.shares_invalid||0,t=good+inv,pct=t?100*inv/t:0;
+  const idle=now-(+w.lastShare||0);
+  if(inv>=2&&pct>10&&(t>=10||pct>=40))return ["bad","Bad",`${fmt(pct)}% of shares invalid (${inv} of ${t})`];
+  if(idle>600)return ["stalled","Stalled",`No share for ${ago(idle).replace(" ago","")}`];
+  if(t<10)return ["new","New",`${t} shares so far`];
+  if(good>=60&&median>0&&(+w.hashrate_1h||0)<median*slowPct/100)return ["slow","Slow",`${fmt(100*(+w.hashrate_1h)/median)}% of fleet median`];
+  return ["clean","Clean",""];
+}
+
+async function load(){
+  $("error").hidden=true;
+  if(!cfg.wallet){$("verdict").innerHTML="<h2>Add your wallet to start</h2><p>Open Settings below and paste your prl1p… address. It stays on this device.</p>";$("settings").open=true;$("stamp").textContent="";return;}
+  $("stamp").textContent="Updating…";
+  try{
+    const [addr,pool,price]=await Promise.all([
+      getJSON("https://pearl.herominers.com/api/stats_address?address="+encodeURIComponent(cfg.wallet)),
+      getJSON("https://pearl.herominers.com/api/stats"),
+      getPrice()]);
+    const now=Date.now()/1000, net=pool.network||{}, lb=pool.lastblock||{};
+    const scale=+net.blockDifficultyPoolScale||+lb.blockDifficultyPoolScale;
+    const target=+net.difficultyTarget||192, reward=(+lb.reward||0)/1e8, netHs=+net.networkHashps||0;
+    const toTH=u=>u*netHs*target/scale/1e12;             // pool units/s -> TH/s
+    const prlDay=u=>u*86400/scale*reward;                 // expected PRL/day at that rate
+    const all=(addr.workers||[]).filter(w=>w&&typeof w==="object"&&String(w.name||"").startsWith("salad"));
+    const active=all.filter(w=>now-(+w.lastShare||0)<1800);
+    const est=active.filter(w=>(+w.shares_good||0)>=60&&(+w.hashrate_1h||0)>0).map(w=>+w.hashrate_1h).sort((a,b)=>a-b);
+    const median=est.length?est[Math.floor(est.length/2)]:0;
+    const rows=active.map(w=>({w,st:classify(w,now,median,cfg.slow)}));
+    const counts={clean:0,bad:0,slow:0,stalled:0,new:0};rows.forEach(r=>counts[r.st[0]]++);
+    const earning=rows.filter(r=>r.st[0]!=="stalled");
+    const fleetUnits=earning.reduce((s,r)=>s+(+r.w.hashrate_1h||0),0);
+    const cleanUnits=rows.filter(r=>r.st[0]==="clean"&&(+r.w.shares_good||0)>=60).map(r=>+r.w.hashrate_1h||0);
+    const avgClean=cleanUnits.length?cleanUnits.reduce((a,b)=>a+b,0)/cleanUnits.length:median;
+    const perNodeDay=prlDay(avgClean), costPerCoin=perNodeDay>0?cfg.cost*24/perNodeDay:NaN;
+    const fleetDay=prlDay(fleetUnits), nodes=active.length;
+    const fleetCostDay=cfg.cost*24*nodes, fleetValDay=fleetDay*price.p;
+    const unconf=(addr.unconfirmed||[]).reduce((s,b)=>s+((+b?.reward||0)/1e8),0);
+    const st=addr.stats||{};
+
+    let h,p;
+    if(!Number.isFinite(price.p)){h="Price unavailable";p=`Your cost per coin is ${usd(costPerCoin)}. Set a price override in Settings to compare.`;}
+    else if(costPerCoin<price.p){h=`Mining is cheaper than buying`;p=`Clean nodes produce PRL at ${usd(costPerCoin)} per coin. The market price is ${usd(price.p)}.`;}
+    else{h=`Buying is cheaper right now`;p=`Clean nodes produce PRL at ${usd(costPerCoin)} per coin, above the ${usd(price.p)} market price.`;}
+    $("verdict").innerHTML=`<h2>${h}</h2><p>${p}</p>`;
+
+    $("nums").innerHTML=[
+      [`${counts.clean} of ${nodes}`,"Nodes clean"],
+      [`${fmt(toTH(fleetUnits))} TH/s`,"Credited by pool, 1 h"],
+      [`${fmt(fleetDay,1)} PRL`,"Expected per day"],
+      [Number.isFinite(fleetValDay)?usd(fleetValDay-fleetCostDay):"–","Profit per day, fleet"],
+      [`${fmt(unconf,2)} PRL`,"Pending confirmation"],
+      [`${fmt((+st.paid||0)/1e8,2)} PRL`,"Paid to date"],
+    ].map(([b,s])=>`<div class="num"><b>${b}</b><span>${s}</span></div>`).join("");
+
+    const order=["bad","stalled","slow","new","clean"], titles={bad:"Kick these",stalled:"Not sending shares",slow:"Slower than the pack",new:"Too early to tell",clean:"Running well"};
+    rows.sort((a,b)=>order.indexOf(a.st[0])-order.indexOf(b.st[0])||(+b.w.hashrate_1h)-(+a.w.hashrate_1h));
+    let html="";
+    for(const k of order){
+      const g=rows.filter(r=>r.st[0]===k);if(!g.length)continue;
+      html+=`<h3>${titles[k]} (${g.length})</h3>`;
+      html+=g.map(({w,st})=>{
+        const t=(+w.shares_good||0)+(+w.shares_invalid||0),pct=t?100*(+w.shares_invalid||0)/t:0;
+        return `<div class="node s-${st[0]}"><span class="name">${String(w.name).replace(/[<>&]/g,"")}</span><span class="tag">${st[1]}</span>
+        <span class="meta">${fmt(toTH(+w.hashrate_1h||0))} TH/s (1 h) · ${fmt(pct,1)}% invalid · last share ${ago(now-(+w.lastShare||0))}</span>
+        ${st[2]?`<span class="why">${st[2]}</span>`:""}</div>`;}).join("");
+    }
+    if(!rows.length)html=`<h3>No active salad nodes</h3><p class="stamp">Nothing has sent a share in the last 30 minutes. Check your Salad container group.</p>`;
+    $("lists").innerHTML=html;
+    $("stamp").textContent="Updated "+new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})+" · price: "+price.src.split(" ")[0];
+  }catch(e){
+    $("error").hidden=false;
+    $("error").textContent="Couldn't reach the pool: "+e.message+". It will retry in a minute.";
+    $("stamp").textContent="";
+  }
+}
+load();setInterval(load,60000);
+</script>
+</body>
+</html>
